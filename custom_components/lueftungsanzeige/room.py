@@ -50,6 +50,7 @@ from .const import (
     EVENT_ENDED,
     EVENT_TARGET_REACHED,
     FOLLOW_UP,
+    REOPEN_GRACE,
     HISTORY_WINDOW,
     HOUR_SCALE,
     K_MAX,
@@ -171,7 +172,10 @@ class VentilationRoom:
         if new_state is None or old_state is None:
             return
         if old_state.state == "off" and new_state.state == "on":
-            self.start()
+            if self.closing and time.time() - self.close_ts < REOPEN_GRACE:
+                self._resume()  # Prellen oder kurz zu und wieder auf
+            else:
+                self.start()
         elif old_state.state == "on" and new_state.state == "off":
             self.end("Fenster geschlossen")
 
@@ -480,6 +484,16 @@ class VentilationRoom:
         self._cancel_finalize = async_call_later(
             self.hass, self.delay_s + FOLLOW_UP, self._finalize_cb
         )
+        self._notify()
+
+    @callback
+    def _resume(self) -> None:
+        """Gerade beendete Lüftung fortsetzen, statt eine neue zu starten."""
+        if self._cancel_finalize:
+            self._cancel_finalize()
+            self._cancel_finalize = None
+        self.closing = False
+        self.active = True
         self._notify()
 
     @callback
