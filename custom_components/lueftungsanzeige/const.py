@@ -45,6 +45,7 @@ MIN_DROP = {MODE_CO2: 80.0, MODE_HUMIDITY: 0.5}
 PRIOR_WEIGHT = 2.0  # Gelerntes zählt so viel wie 2 Messwerte der laufenden Sitzung
 DEFAULT_PRIOR_WEIGHT = 0.5  # Startwert zählt wie eine halbe gelernte Lüftung
 DT_SCALE = 5.0  # K – wie stark ähnliche Temperaturdifferenzen bevorzugt werden
+HOUR_SCALE = 2.5  # h – Lüftungen zu ähnlicher Tageszeit zählen mehr
 AGE_DECAY = 0.95  # ältere Lüftungen zählen etwas weniger
 
 HISTORY_WINDOW = 3 * 3600  # s – für den Ausgangswert im Bad

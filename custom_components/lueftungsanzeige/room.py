@@ -51,6 +51,7 @@ from .const import (
     EVENT_TARGET_REACHED,
     FOLLOW_UP,
     HISTORY_WINDOW,
+    HOUR_SCALE,
     K_MAX,
     K_MIN,
     MAX_DURATION,
@@ -278,8 +279,19 @@ class VentilationRoom:
         return target
 
     # ------------------------------------------------------------ Lernen / Schätzen
-    def k_prior(self, dt: float | None = None) -> float:
-        """Gelernte Luftwechselrate (gewichtetes geometrisches Mittel)."""
+    @staticmethod
+    def _hour_of(ts: float) -> float:
+        t = time.localtime(ts)
+        return t.tm_hour + t.tm_min / 60
+
+    def k_prior(self, dt: float | None = None, hour: float | None = None) -> float:
+        """Gelernte Luftwechselrate (gewichtetes geometrisches Mittel).
+
+        Lüftungen bei ähnlicher Temperaturdifferenz und ähnlicher Tageszeit
+        zählen mehr (z. B. morgens zwei Fenster, abends eins).
+        """
+        if hour is None:
+            hour = self._hour_of(time.time())
         default = DEFAULT_K[self.mode]
         num = DEFAULT_PRIOR_WEIGHT * math.log(default)
         den = DEFAULT_PRIOR_WEIGHT
@@ -288,6 +300,11 @@ class VentilationRoom:
             sdt = session.get("dt")
             if dt is not None and sdt is not None:
                 weight *= math.exp(-(((dt - sdt) / DT_SCALE) ** 2)) + 0.05
+            shour = session.get("stunde")
+            if shour is not None:
+                diff = abs(hour - shour) % 24
+                diff = min(diff, 24 - diff)
+                weight *= math.exp(-((diff / HOUR_SCALE) ** 2)) + 0.1
             num += weight * math.log(session["k"])
             den += weight
         return math.exp(num / den)
@@ -317,7 +334,10 @@ class VentilationRoom:
         return max(K_MIN, min(K_MAX, k)), n
 
     def k_current(self) -> float:
-        prior = self.k_prior(self.session_dt if self.active else self.delta_t())
+        if self.active:
+            prior = self.k_prior(self.session_dt, self._hour_of(self.session_start))
+        else:
+            prior = self.k_prior(self.delta_t())
         if not self.active:
             return prior
         live = self.k_live()
@@ -506,6 +526,7 @@ class VentilationRoom:
                 "k": round(k, 4),
                 "n": n,
                 "dt": None if self.session_dt is None else round(self.session_dt, 1),
+                "stunde": round(self._hour_of(self.session_start), 2),
                 "dauer_min": round(duration_min, 1),
                 "start": self.start_value,
                 "tiefpunkt": self.session_min,
