@@ -1,0 +1,13 @@
+{
+  "domain": "lueftungsanzeige",
+  "name": "Lüftungsanzeige",
+  "codeowners": ["@mldopcoder"],
+  "config_flow": true,
+  "documentation": "https://github.com/mldopcoder/lueftungsanzeige",
+  "issue_tracker": "https://github.com/mldopcoder/lueftungsanzeige/issues",
+  "dependencies": [],
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "requirements": [],
+  "version": "0.4.0"
+}

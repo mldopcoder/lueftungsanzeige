@@ -1,0 +1,70 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Raum für die Lüftungsanzeige",
+        "data": {
+          "name": "Raumname",
+          "mode": "Messgröße"
+        }
+      },
+      "sensors": {
+        "title": "Sensoren und Zielwerte",
+        "data": {
+          "sensor": "Raumsensor (CO2 bzw. absolute Feuchte)",
+          "target": "Zielwert CO2",
+          "recommend": "Lüften empfohlen ab",
+          "outdoor_co2": "CO2 außen",
+          "outdoor_sensor": "Absolute Feuchte außen",
+          "tolerance": "Toleranz über Ausgangswert",
+          "room_temp": "Raumtemperatur (optional)",
+          "outdoor_temp": "Außentemperatur (optional)",
+          "window": "Fensterkontakt (optional)",
+          "delay": "Messverzögerung des Sensors"
+        },
+        "data_description": {
+          "recommend": "CO2: absoluter Wert. Feuchte: Anstieg gegenüber dem Tiefstwert der letzten 3 Stunden.",
+          "tolerance": "Lüften gilt als fertig, wenn die Feuchte wieder so nah am Wert vor dem Duschen ist.",
+          "room_temp": "Mit Raum- und Außentemperatur lernt die Integration getrennt nach Wetterlage.",
+          "window": "Öffnen startet die Lüftung, Schließen beendet sie. Ohne Kontakt: Knopf „Lüften starten“.",
+          "delay": "Wie viele Minuten der Sensor hinterherhinkt. Netatmo: ca. 5, Zigbee/ESPHome: 0."
+        }
+      }
+    },
+    "error": {
+      "outdoor_required": "Für den Feuchte-Modus wird ein Außensensor für absolute Feuchte benötigt."
+    },
+    "abort": {
+      "already_configured": "Dieser Sensor ist schon eingerichtet."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Einstellungen",
+        "data": {
+          "target": "Zielwert CO2",
+          "recommend": "Lüften empfohlen ab",
+          "outdoor_co2": "CO2 außen",
+          "outdoor_sensor": "Absolute Feuchte außen",
+          "tolerance": "Toleranz über Ausgangswert",
+          "room_temp": "Raumtemperatur (optional)",
+          "outdoor_temp": "Außentemperatur (optional)",
+          "window": "Fensterkontakt (optional)",
+          "delay": "Messverzögerung des Sensors"
+        }
+      }
+    },
+    "error": {
+      "outdoor_required": "Für den Feuchte-Modus wird ein Außensensor für absolute Feuchte benötigt."
+    }
+  },
+  "selector": {
+    "mode": {
+      "options": {
+        "co2": "CO2 (ppm)",
+        "humidity": "Absolute Feuchte (g/m³) – z. B. Bad"
+      }
+    }
+  }
+}
