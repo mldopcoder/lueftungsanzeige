@@ -1,0 +1,47 @@
+lueftung_nachtragen:
+  name: Lüftung nachtragen
+  description: Trägt eine vergangene Lüftung von Hand ins Gelernte eines Raums ein.
+  fields:
+    raum:
+      name: Raum
+      description: Name des Raums, wie bei der Einrichtung vergeben (z. B. Kinderzimmer).
+      required: true
+      example: Kinderzimmer
+      selector:
+        text:
+    start:
+      name: Start
+      description: Wann das Fenster geöffnet wurde.
+      required: true
+      selector:
+        datetime:
+    dauer_min:
+      name: Dauer
+      description: Wie lange das Fenster offen war (Minuten).
+      required: true
+      selector:
+        number:
+          min: 0.5
+          max: 120
+          step: 0.1
+          unit_of_measurement: min
+    startwert:
+      name: Startwert
+      description: Wert vor dem Öffnen (ppm bzw. g/m³).
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 10000
+          step: 0.1
+          mode: box
+    tiefpunkt:
+      name: Tiefpunkt
+      description: Tiefster Wert nach der Lüftung (ppm bzw. g/m³).
+      required: true
+      selector:
+        number:
+          min: 0
+          max: 10000
+          step: 0.1
+          mode: box

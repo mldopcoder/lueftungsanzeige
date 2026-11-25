@@ -572,6 +572,35 @@ class VentilationRoom:
         self._store.async_delay_save(self._store_data, 5)
         return True
 
+    @callback
+    def add_manual_session(
+        self, start_ts: float, duration_min: float, start: float, low: float
+    ) -> bool:
+        """Lüftung von Hand nachtragen (Dienst „Lüftung nachtragen“)."""
+        out = self.outdoor_value()
+        if out is None or start - out <= 0 or low - out <= 0 or low >= start:
+            return False
+        k = math.log((start - out) / (low - out)) / duration_min
+        self.sessions = [s for s in self.sessions if s["ts"] != round(start_ts)]
+        self.sessions.append(
+            {
+                "ts": round(start_ts),
+                "k": round(max(K_MIN, min(K_MAX, k)), 4),
+                "n": 0,
+                "dt": None,
+                "stunde": round(self._hour_of(start_ts), 2),
+                "dauer_min": round(duration_min, 1),
+                "start": start,
+                "tiefpunkt": low,
+                "nachgetragen": True,
+            }
+        )
+        self.sessions.sort(key=lambda s: s["ts"])
+        del self.sessions[:-MAX_SESSIONS]
+        self._store.async_delay_save(self._store_data, 1)
+        self._notify()
+        return True
+
     def session_label(self, session: dict) -> str:
         when = dt_util.as_local(dt_util.utc_from_timestamp(session["ts"])).strftime(
             "%d.%m. %H:%M"
