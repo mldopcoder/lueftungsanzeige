@@ -58,6 +58,7 @@ from .const import (
     MAX_DURATION,
     MAX_SESSIONS,
     MIN_DROP,
+    MAX_LEARN_DURATION,
     MIN_LEARN_DURATION,
     MODE_CO2,
     OPTIONAL_KEYS,
@@ -129,6 +130,7 @@ class VentilationRoom:
         self.session_min_ts = 0.0
         self.target_reached = False
         self.session_needed = False
+        self.skip_learning = False
         self.points: list[tuple[float, float]] = []
         # Nachlauf: Lüftung ist vorbei, verspätete Messwerte werden noch gesammelt
         self.closing = False
@@ -419,6 +421,7 @@ class VentilationRoom:
             self._finalize()  # vorherige Lüftung jetzt auswerten
         # War Lüften beim Öffnen überhaupt nötig? (vor active=True prüfen)
         self.session_needed = self.recommended()
+        self.skip_learning = False
         self.active = True
         self.session_start = time.time()
         self.start_value = value
@@ -526,8 +529,12 @@ class VentilationRoom:
         self._notify()
 
     def _learn(self, duration_min: float) -> bool:
+        if self.skip_learning:
+            return False
         if duration_min * 60 < MIN_LEARN_DURATION:
             return False
+        if duration_min * 60 > MAX_LEARN_DURATION:
+            return False  # z. B. Fenster lange gekippt – kein Stoßlüften
         if self.start_value - self.session_min < MIN_DROP[self.mode]:
             return False
         live = self.k_live()
@@ -549,6 +556,18 @@ class VentilationRoom:
         del self.sessions[:-MAX_SESSIONS]
         self._store.async_delay_save(self._store_data, 5)
         return True
+
+    @callback
+    def skip_current(self) -> None:
+        """Laufende/gerade beendete Lüftung nicht lernen, sonst letzte gelernte löschen."""
+        if self.active or self.closing:
+            self.skip_learning = True
+        elif self.sessions:
+            self.sessions.pop()
+            self._store.async_delay_save(self._store_data, 1)
+            if self.last_session:
+                self.last_session["gelernt"] = False
+        self._notify()
 
     @callback
     def reset_learning(self) -> None:

@@ -21,6 +21,7 @@ async def async_setup_entry(
         [
             StartButton(room, "start", "Lüften starten"),
             StopButton(room, "stop", "Lüften beenden"),
+            SkipButton(room, "skip", "Lüftung nicht lernen"),
             ResetButton(room, "reset", "Gelerntes zurücksetzen"),
         ]
     )
@@ -38,6 +39,15 @@ class StopButton(RoomEntity, ButtonEntity):
 
     async def async_press(self) -> None:
         self.room.end("manuell")
+
+
+class SkipButton(RoomEntity, ButtonEntity):
+    """Aktuelle Lüftung nicht lernen bzw. zuletzt gelernte wieder entfernen."""
+
+    _attr_icon = "mdi:school-outline"
+
+    async def async_press(self) -> None:
+        self.room.skip_current()
 
 
 class ResetButton(RoomEntity, ButtonEntity):

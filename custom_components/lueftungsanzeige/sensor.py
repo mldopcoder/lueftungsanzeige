@@ -45,7 +45,7 @@ class RemainingSensor(RoomEntity, SensorEntity):
     @property
     def extra_state_attributes(self) -> dict:
         r = self.room
-        attrs = {"aktiv": r.active, "auswertung_laeuft": r.closing, "einheit": r.unit}
+        attrs = {"aktiv": r.active, "auswertung_laeuft": r.closing, "nicht_lernen": r.skip_learning, "einheit": r.unit}
         if r.active:
             value_now = r.value_now()
             attrs.update(
