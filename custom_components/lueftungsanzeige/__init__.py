@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 
 from .room import VentilationRoom
 
-PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON]
+PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.BUTTON, Platform.SELECT]
 
 type LueftungConfigEntry = ConfigEntry[VentilationRoom]
 

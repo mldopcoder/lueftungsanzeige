@@ -24,6 +24,7 @@ from homeassistant.helpers.event import (
     async_track_time_interval,
 )
 from homeassistant.helpers.storage import Store
+from homeassistant.util import dt as dt_util
 
 from .const import (
     AGE_DECAY,
@@ -130,7 +131,7 @@ class VentilationRoom:
         self.session_min_ts = 0.0
         self.target_reached = False
         self.session_needed = False
-        self.skip_learning = False
+        self.selected_ts: int | None = None  # im Auswahlfeld gewählte Lüftung
         self.points: list[tuple[float, float]] = []
         # Nachlauf: Lüftung ist vorbei, verspätete Messwerte werden noch gesammelt
         self.closing = False
@@ -287,8 +288,8 @@ class VentilationRoom:
     # ------------------------------------------------------------ Lernen / Schätzen
     @staticmethod
     def _hour_of(ts: float) -> float:
-        t = time.localtime(ts)
-        return t.tm_hour + t.tm_min / 60
+        t = dt_util.as_local(dt_util.utc_from_timestamp(ts))
+        return t.hour + t.minute / 60
 
     def k_prior(self, dt: float | None = None, hour: float | None = None) -> float:
         """Gelernte Luftwechselrate (gewichtetes geometrisches Mittel).
@@ -421,7 +422,6 @@ class VentilationRoom:
             self._finalize()  # vorherige Lüftung jetzt auswerten
         # War Lüften beim Öffnen überhaupt nötig? (vor active=True prüfen)
         self.session_needed = self.recommended()
-        self.skip_learning = False
         self.active = True
         self.session_start = time.time()
         self.start_value = value
@@ -529,8 +529,6 @@ class VentilationRoom:
         self._notify()
 
     def _learn(self, duration_min: float) -> bool:
-        if self.skip_learning:
-            return False
         if duration_min * 60 < MIN_LEARN_DURATION:
             return False
         if duration_min * 60 > MAX_LEARN_DURATION:
@@ -557,16 +555,31 @@ class VentilationRoom:
         self._store.async_delay_save(self._store_data, 5)
         return True
 
+    def session_label(self, session: dict) -> str:
+        when = dt_util.as_local(dt_util.utc_from_timestamp(session["ts"])).strftime(
+            "%d.%m. %H:%M"
+        )
+        if self.mode == MODE_CO2:
+            vals = f"{session['start']:.0f}→{session['tiefpunkt']:.0f} ppm"
+        else:
+            vals = f"{session['start']:.1f}→{session['tiefpunkt']:.1f} g/m³"
+        return f"{when} · {session['dauer_min']:.0f} min · {vals}"
+
     @callback
-    def skip_current(self) -> None:
-        """Laufende/gerade beendete Lüftung nicht lernen, sonst letzte gelernte löschen."""
-        if self.active or self.closing:
-            self.skip_learning = True
-        elif self.sessions:
-            self.sessions.pop()
+    def select_session(self, ts: int | None) -> None:
+        self.selected_ts = ts
+        self._notify()
+
+    @callback
+    def delete_selected(self) -> None:
+        """Im Auswahlfeld gewählte gelernte Lüftung löschen."""
+        if self.selected_ts is None and self.sessions:
+            self.selected_ts = self.sessions[-1]["ts"]
+        before = len(self.sessions)
+        self.sessions = [s for s in self.sessions if s["ts"] != self.selected_ts]
+        if len(self.sessions) != before:
             self._store.async_delay_save(self._store_data, 1)
-            if self.last_session:
-                self.last_session["gelernt"] = False
+        self.selected_ts = None
         self._notify()
 
     @callback
