@@ -131,6 +131,9 @@ class VentilationRoom:
         self.session_min_ts = 0.0
         self.target_reached = False
         self.session_needed = False
+        # Lernen: tiefster Wert nach dem Öffnen (inkl. Nachlauf) = echter Endwert
+        self.end_min = 0.0
+        self.end_count = 0
         self.selected_ts: int | None = None  # im Auswahlfeld gewählte Lüftung
         self.points: list[tuple[float, float]] = []
         # Nachlauf: Lüftung ist vorbei, verspätete Messwerte werden noch gesammelt
@@ -225,6 +228,11 @@ class VentilationRoom:
             return
         ts = new_state.last_updated.timestamp() - self.delay_s
         self._add_history(ts, value)
+        if (self.active or self.closing) and ts > self.session_start:
+            # alles nach dem Öffnen bis Ende Nachlauf: Tiefstwert merken
+            if value < self.end_min:
+                self.end_min = value
+            self.end_count += 1
         if self.active:
             if ts > self.session_start:
                 self.points.append((ts, value))
@@ -233,10 +241,14 @@ class VentilationRoom:
                 # Wert wurde noch vor dem Öffnen gemessen -> besserer Startwert
                 self.start_value = value
                 self.session_min = value
+                if not self.end_count:
+                    self.end_min = value
                 self.target_reached = value <= self.session_target
         elif self.closing and ts <= self.session_start and not self.points:
             self.start_value = value
             self.session_min = value
+            if not self.end_count:
+                self.end_min = value
         elif self.closing and self.session_start < ts <= self.close_ts:
             # verspäteter Wert, der noch während der Lüftung gemessen wurde
             self.points.append((ts, value))
@@ -428,6 +440,8 @@ class VentilationRoom:
         self.session_baseline = self.baseline()
         self.session_target = self._target(self.session_baseline) or value
         self.session_dt = self.delta_t()
+        self.end_min = value
+        self.end_count = 0
         self.session_min = value
         self.session_min_ts = self.session_start
         self.target_reached = value <= self.session_target
@@ -485,7 +499,7 @@ class VentilationRoom:
         self.close_reason = reason
         # Sensoren liefern verspätet: erst nach dem Nachlauf auswerten
         self._cancel_finalize = async_call_later(
-            self.hass, self.delay_s + FOLLOW_UP, self._finalize_cb
+            self.hass, FOLLOW_UP, self._finalize_cb
         )
         self._notify()
 
@@ -518,8 +532,8 @@ class VentilationRoom:
             "grund": self.close_reason,
             "dauer_min": round(duration, 1),
             "start": self.start_value,
-            "tiefpunkt": self.session_min,
-            "messwerte": len(self.points),
+            "tiefpunkt": self.end_min,
+            "messwerte": self.end_count,
             "gelernt": learned,
         }
         self.hass.bus.async_fire(
@@ -533,12 +547,15 @@ class VentilationRoom:
             return False
         if duration_min * 60 > MAX_LEARN_DURATION:
             return False  # z. B. Fenster lange gekippt – kein Stoßlüften
-        if self.start_value - self.session_min < MIN_DROP[self.mode]:
+        if not self.end_count or self.start_value - self.end_min < MIN_DROP[self.mode]:
             return False
-        live = self.k_live()
-        if live is None:
+        out = self.outdoor_value()
+        if out is None or self.end_min - out <= 0 or self.start_value - out <= 0:
             return False
-        k, n = live
+        # Rate aus Start- und Tiefstwert über die Zeit, die das Fenster offen war
+        k = math.log((self.start_value - out) / (self.end_min - out)) / duration_min
+        k = max(K_MIN, min(K_MAX, k))
+        n = self.end_count
         self.sessions.append(
             {
                 "ts": round(self.session_start),
@@ -548,7 +565,7 @@ class VentilationRoom:
                 "stunde": round(self._hour_of(self.session_start), 2),
                 "dauer_min": round(duration_min, 1),
                 "start": self.start_value,
-                "tiefpunkt": self.session_min,
+                "tiefpunkt": self.end_min,
             }
         )
         del self.sessions[:-MAX_SESSIONS]

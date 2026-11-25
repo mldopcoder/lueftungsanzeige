@@ -53,7 +53,7 @@ MAX_DURATION = 90 * 60  # s – danach wird eine Sitzung automatisch beendet
 MIN_LEARN_DURATION = 2 * 60  # s
 MAX_LEARN_DURATION = 30 * 60  # s – länger ist kein Stoßlüften (z. B. Fenster gekippt)
 # Nach dem Ende noch so lange (plus Messverzögerung) auf verspätete Werte warten
-FOLLOW_UP = 12 * 60  # s
+FOLLOW_UP = 30 * 60  # s – Nachlauf: so lange nach dem Schließen den Tiefstwert suchen
 # Fenster innerhalb dieser Zeit wieder auf -> gleiche Lüftung fortsetzen (Prellen)
 REOPEN_GRACE = 60  # s
 MAX_SESSIONS = 50
