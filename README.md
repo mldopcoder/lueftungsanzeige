@@ -59,4 +59,4 @@ Die Entity-IDs ergeben sich aus dem Raumnamen. Am besten nach der Einrichtung im
 ## Hinweise
 
 - Netatmo meldet nur etwa alle 6 Minuten und mit Verzögerung. Dafür „Messverzögerung“ auf ca. 5 min stellen. Dazwischen rechnet die Integration den Wert hoch.
-- Im Bad ist der Ausgangswert der Tiefstwert der letzten 3 Stunden. Direkt nach einem HA-Neustart fehlt diese Historie noch.
+- Im Bad ist der Normalwert der zeitgewichtete Median der letzten 6 Stunden. Zeiten während einer Lüftung und im Nachlauf zählen nicht mit, damit der Tiefpunkt nach dem Lüften nicht als normal gilt. Direkt nach einem HA-Neustart fehlt diese Historie noch.

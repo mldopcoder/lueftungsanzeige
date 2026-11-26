@@ -26,10 +26,10 @@ OPTIONAL_KEYS = (CONF_OUTDOOR_SENSOR, CONF_ROOM_TEMP, CONF_OUTDOOR_TEMP, CONF_WI
 
 DEFAULT_TARGET_CO2 = 800.0  # ppm
 DEFAULT_OUTDOOR_CO2 = 420.0  # ppm
-DEFAULT_TOLERANCE = 0.5  # g/m³ über Ausgangswert vor dem Duschen
+DEFAULT_TOLERANCE = 0.5  # g/m³ über dem Normalwert (Median)
 DEFAULT_RECOMMEND = {
     MODE_CO2: 1000.0,  # ppm, ab hier "Lüften empfohlen"
-    MODE_HUMIDITY: 1.5,  # g/m³ über dem Tiefstwert der letzten 3 h
+    MODE_HUMIDITY: 1.5,  # g/m³ über dem Normalwert (Median der letzten 6 h)
 }
 
 # Startwert der Luftwechselrate k (1/min), bis gelernt wurde
@@ -48,7 +48,7 @@ DT_SCALE = 5.0  # K – wie stark ähnliche Temperaturdifferenzen bevorzugt werd
 HOUR_SCALE = 2.5  # h – Lüftungen zu ähnlicher Tageszeit zählen mehr
 AGE_DECAY = 0.95  # ältere Lüftungen zählen etwas weniger
 
-HISTORY_WINDOW = 3 * 3600  # s – für den Ausgangswert im Bad
+HISTORY_WINDOW = 6 * 3600  # s – Bad: Normalwert = Median dieses Zeitraums
 MAX_DURATION = 90 * 60  # s – danach wird eine Sitzung automatisch beendet
 MIN_LEARN_DURATION = 2 * 60  # s
 MAX_LEARN_DURATION = 30 * 60  # s – länger ist kein Stoßlüften (z. B. Fenster gekippt)

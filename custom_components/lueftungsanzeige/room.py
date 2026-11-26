@@ -117,6 +117,8 @@ class VentilationRoom:
         )
 
         self.history: deque[tuple[float, float]] = deque()
+        # Zeiträume (Start, Ende) einer Lüftung inkl. Nachlauf – zählen nicht zum Normalwert
+        self.excluded: list[list[float | None]] = []
         self.sessions: list[dict] = []
         self.last_session: dict | None = None
 
@@ -220,6 +222,14 @@ class VentilationRoom:
         while len(self.history) > 1 and self.history[0][0] < cutoff:
             self.history.popleft()
 
+    def _close_excluded(self) -> None:
+        now = time.time()
+        for interval in self.excluded:
+            if interval[1] is None:
+                interval[1] = now
+        cutoff = now - HISTORY_WINDOW
+        self.excluded = [i for i in self.excluded if i[1] is None or i[1] >= cutoff]
+
     @callback
     def _handle_sensor(self, event: Event[EventStateChangedData]) -> None:
         new_state = event.data["new_state"]
@@ -278,12 +288,47 @@ class VentilationRoom:
         return room - out
 
     def baseline(self) -> float | None:
-        """Tiefster Wert der letzten 3 h (Bad: Zustand vor dem Duschen)."""
+        """Normalwert: zeitgewichteter Median der letzten 6 h.
+
+        Zeiten während einer Lüftung und im Nachlauf zählen nicht mit, damit
+        der Tiefpunkt nach dem Lüften nicht als "normal" gilt. Kurze Ausreißer
+        (Duschen) verschieben den Median kaum, langsame Wetteränderungen schon.
+        """
         if not self.history:
             return None
-        cutoff = time.time() - HISTORY_WINDOW
-        values = [v for ts, v in self.history if ts >= cutoff]
-        return min(values) if values else self.history[-1][1]
+        now = time.time()
+        cutoff = now - HISTORY_WINDOW
+        points = list(self.history)
+        weighted: list[tuple[float, float]] = []
+        for i, (ts, value) in enumerate(points):
+            start = max(ts, cutoff)
+            end = points[i + 1][0] if i + 1 < len(points) else now
+            weight = self._free_time(start, end)
+            if weight > 0:
+                weighted.append((value, weight))
+        if not weighted:
+            return self.history[-1][1]
+        weighted.sort()
+        half = sum(w for _, w in weighted) / 2
+        acc = 0.0
+        for value, weight in weighted:
+            acc += weight
+            if acc >= half:
+                return value
+        return weighted[-1][0]
+
+    def _free_time(self, start: float, end: float) -> float:
+        """Länge von [start, end] ohne die Lüftungszeiträume."""
+        if end <= start:
+            return 0.0
+        length = end - start
+        now = time.time()
+        for ex_start, ex_end in self.excluded:
+            ex_end = now if ex_end is None else ex_end
+            overlap = min(end, ex_end) - max(start, ex_start)
+            if overlap > 0:
+                length -= overlap
+        return max(0.0, length)
 
     def _target(self, baseline: float | None) -> float | None:
         if self.mode == MODE_CO2:
@@ -436,6 +481,7 @@ class VentilationRoom:
         self.session_needed = self.recommended()
         self.active = True
         self.session_start = time.time()
+        self.excluded.append([self.session_start, None])
         self.start_value = value
         self.session_baseline = self.baseline()
         self.session_target = self._target(self.session_baseline) or value
@@ -526,6 +572,7 @@ class VentilationRoom:
             self._cancel_finalize()
             self._cancel_finalize = None
         self.closing = False
+        self._close_excluded()
         duration = (self.close_ts - self.session_start) / 60
         learned = self._learn(duration)
         self.last_session = {
