@@ -70,7 +70,10 @@ def _schema(mode: str, current: dict[str, Any], include_sensor: bool) -> vol.Sch
     fields: dict[Any, Any] = {}
 
     if include_sensor:
-        fields[vol.Required(CONF_SENSOR)] = sensor_sel
+        if current.get(CONF_SENSOR):
+            fields[vol.Required(CONF_SENSOR, default=current[CONF_SENSOR])] = sensor_sel
+        else:
+            fields[vol.Required(CONF_SENSOR)] = sensor_sel
 
     if mode == MODE_CO2:
         fields[
@@ -184,6 +187,6 @@ class LueftungOptionsFlow(OptionsFlow):
         current = {**self.config_entry.data, **self.config_entry.options}
         return self.async_show_form(
             step_id="init",
-            data_schema=_schema(mode, current, include_sensor=False),
+            data_schema=_schema(mode, current, include_sensor=True),
             errors=errors,
         )

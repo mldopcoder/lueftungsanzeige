@@ -51,7 +51,8 @@
           "room_temp": "Raumtemperatur (optional)",
           "outdoor_temp": "Außentemperatur (optional)",
           "window": "Fensterkontakt (optional)",
-          "delay": "Messverzögerung des Sensors"
+          "delay": "Messverzögerung des Sensors",
+          "sensor": "Raumsensor (CO2 bzw. absolute Feuchte)"
         }
       }
     },
