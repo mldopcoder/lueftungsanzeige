@@ -48,6 +48,7 @@ DT_SCALE = 5.0  # K – wie stark ähnliche Temperaturdifferenzen bevorzugt werd
 HOUR_SCALE = 2.5  # h – Lüftungen zu ähnlicher Tageszeit zählen mehr
 AGE_DECAY = 0.95  # ältere Lüftungen zählen etwas weniger
 
+SETTLE = 10  # s – so lange auf einen zweiten, korrigierten Messwert warten
 HISTORY_WINDOW = 6 * 3600  # s – Bad: Normalwert = Median dieses Zeitraums
 MAX_DURATION = 90 * 60  # s – danach wird eine Sitzung automatisch beendet
 MIN_LEARN_DURATION = 2 * 60  # s

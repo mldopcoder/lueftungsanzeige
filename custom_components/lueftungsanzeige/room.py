@@ -53,6 +53,7 @@ from .const import (
     FOLLOW_UP,
     REOPEN_GRACE,
     HISTORY_WINDOW,
+    SETTLE,
     HOUR_SCALE,
     K_MAX,
     K_MIN,
@@ -143,6 +144,8 @@ class VentilationRoom:
         self.close_ts = 0.0
         self.close_reason = ""
         self._cancel_finalize: Callable[[], None] | None = None
+        self._cancel_settle: Callable[[], None] | None = None
+        self._pending_state = None
 
         self._listeners: list[Callable[[], None]] = []
         self._unsubs: list[Callable[[], None]] = []
@@ -188,6 +191,9 @@ class VentilationRoom:
             self.end("Fenster geschlossen")
 
     async def async_shutdown(self) -> None:
+        if self._cancel_settle:
+            self._cancel_settle()
+            self._cancel_settle = None
         if self.closing:
             self._finalize()
         for unsub in self._unsubs:
@@ -232,7 +238,30 @@ class VentilationRoom:
 
     @callback
     def _handle_sensor(self, event: Event[EventStateChangedData]) -> None:
-        new_state = event.data["new_state"]
+        """Neuen Messwert kurz zurückhalten.
+
+        Abgeleitete Sensoren (z. B. absolute Feuchte aus Temperatur und
+        relativer Feuchte) melden kurz nacheinander zwei Werte, der erste ist
+        ein Ausreißer. Erst wenn SETTLE Sekunden nichts Neues kam, zählt der
+        Wert.
+        """
+        self._pending_state = event.data["new_state"]
+        if self._cancel_settle:
+            self._cancel_settle()
+        self._cancel_settle = async_call_later(
+            self.hass, SETTLE, self._settle_cb
+        )
+
+    @callback
+    def _settle_cb(self, _now) -> None:
+        self._cancel_settle = None
+        new_state = self._pending_state
+        self._pending_state = None
+        if new_state is not None:
+            self._process_state(new_state)
+
+    @callback
+    def _process_state(self, new_state) -> None:
         value = _to_float(new_state)
         if value is None:
             return
